@@ -52,8 +52,9 @@ func Code(ctx *context.Context) {
 		isAdmin = ctx.User.IsAdmin
 	}
 
+	//improve performance when user open code search page the first time
 	// guest user or non-admin user
-	if ctx.User == nil || !isAdmin {
+	if keyword != "" && (ctx.User == nil || !isAdmin) {
 		repoIDs, err = models.FindUserAccessibleRepoIDs(ctx.User)
 		if err != nil {
 			ctx.ServerError("SearchResults", err)
@@ -78,10 +79,17 @@ func Code(ctx *context.Context) {
 		var rightRepoMap = make(map[int64]*models.Repository, len(repoMaps))
 		repoIDs = make([]int64, 0, len(repoMaps))
 		for id, repo := range repoMaps {
-			if repo.CheckUnitUser(ctx.User, models.UnitTypeCode) {
+			//only check private repo's UnitTypeCode
+			if repo.IsPrivate {
+				if repo.CheckUnitUser(ctx.User, models.UnitTypeCode) {
+					rightRepoMap[id] = repo
+					repoIDs = append(repoIDs, id)
+				}
+			} else {
 				rightRepoMap[id] = repo
 				repoIDs = append(repoIDs, id)
 			}
+
 		}
 
 		ctx.Data["RepoMaps"] = rightRepoMap
